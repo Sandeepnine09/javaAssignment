@@ -105,4 +105,64 @@ private Dictionary<string, int> WriteHeader(IEnumerable<string> headers, ISheet 
 }
 
 
+#--------To make multiple sheets inside excel
+
+public Stream Execute(JObject graphQLResult, bool ignorePropertyPath)
+{
+    var list = graphQLResult.SelectToken("$.search.list") ?? graphQLResult.SelectToken("$..search.list")
+        ?? graphQLResult.SelectToken("$..search");
+    if (list != null && list is JArray)
+    {
+        var ms = new MemoryStream();
+        using (var excelStream = new MemoryStream())
+        {
+            var workbook = (IWorkbook)new XSSFWorkbook();
+
+            var dictList = (list as JArray).ToFlatDictionaries();
+            foreach (var record in dictList)
+            {
+                var sheetName = GenerateSheetName(record); // Generate a unique sheet name for each record
+
+                var sheet = (ISheet)workbook.CreateSheet(sheetName);
+
+                var header = (Dictionary<string, int>)null;
+                var rowIndex = 0;
+
+                foreach (var k in record.ToList())
+                {
+                    if (k.Value != null && k.Value.GetType() == typeof(string))
+                    {
+                        record[k.Key] = ((string)k.Value).Replace("\r", "");
+                    }
+                }
+
+                if (rowIndex == 0)
+                {
+                    var orderedHeaders = dictList.SelectMany(lst => lst.Select((row, index) => new { text = row.Key, index }));
+                    var allHeaders = orderedHeaders
+                        .GroupBy(gp => new { gp.text })
+                        .OrderBy(x => x.Max(y => y.index))
+                        .Select(x => x.Key.text).Distinct();
+                    header = WriteHeader(allHeaders, sheet, ignorePropertyPath);
+                    rowIndex++;
+                }
+
+                sheet.CreateFreezePane(0, 1, 0, 1);
+                rowIndex = WriteRow(header, record, sheet, rowIndex, ignorePropertyPath);
+            }
+
+            workbook.Write(excelStream);
+            byte[] excelStreamContent = excelStream.ToArray();
+            ms.Write(excelStreamContent, 0, excelStreamContent.Length);
+        }
+        return ms;
+    }
+    return null;
+}
+
+------In the modified code, a unique sheet name is generated for each record in the dictList using the GenerateSheetName function (you can implement it according to your requirements). Then, a new sheet is created with the generated name using workbook.CreateSheet(sheetName). The header and rows are written to the respective sheet inside the foreach loop for each record.
+
+Note that the WriteHeader function should be modified to accept the sheet object (ISheet) as a parameter instead of the sheet name (string). You can update the WriteHeader function accordingly to write the headers to the correct sheet.
+
+
 
