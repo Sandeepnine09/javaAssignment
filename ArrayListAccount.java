@@ -36,9 +36,13 @@ public class ArrayListAccount {
 
 }
 
+---------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+	public class OpenXmlFormatter : IFormatter
+    {
+        public Stream Execute(JObject graphQLResult) => Execute(graphQLResult, false);
 
-public Stream Execute(JObject graphQLResult, bool ignorePropertyPath)
+        public Stream Execute(JObject graphQLResult, bool ignorePropertyPath)
         {
             var list = graphQLResult.SelectToken("$.search.list") ?? graphQLResult.SelectToken("$..search.list")
                 ?? graphQLResult.SelectToken("$..search");
@@ -84,6 +88,86 @@ public Stream Execute(JObject graphQLResult, bool ignorePropertyPath)
             }
             return null;
         }
+
+        private int WriteRow(Dictionary<string, int> headerDict, Dictionary<string, object> data, ISheet sheet, int rowIndex, bool ignorePropertyPath)
+        {
+            if (data == null || data.Count == 0)
+                return rowIndex;
+
+            var row = sheet.CreateRow(rowIndex);
+
+            foreach (var item in data)
+            {
+                var cellNumber = headerDict[item.Key];
+                var cell = row.CreateCell(cellNumber);
+
+                if (item.Value == null)
+                {
+                    cell.SetCellValue(string.Empty);
+                }
+                else
+                {
+                    var type = item.Value.GetType();
+
+                    if (type == typeof(double))
+                        cell.SetCellValue((double)item.Value);
+                    else if (type == typeof(bool))
+                        cell.SetCellValue((bool)item.Value);
+                    else if (type == typeof(DateTime))
+                        cell.SetCellValue((DateTime)item.Value);
+                    else
+                        cell.SetCellValue(item.Value.ToString());
+                }
+            }
+            return rowIndex + 1;
+        }
+
+        private Dictionary<string, int> WriteHeader(IEnumerable<string> headers, ISheet sheet, bool ignorePropertyPath)
+        {
+            var cellIndex = 0;
+            var headerDictionary = new Dictionary<string, int>();
+            var row = sheet.CreateRow(0);
+            foreach (var prop in headers)
+            {
+                headerDictionary.Add(prop, cellIndex);
+                row.CreateCell(cellIndex).SetCellValue(GetTitleForProperty(prop, ignorePropertyPath));
+                cellIndex++;
+            }
+            return headerDictionary;
+        }
+
+        private string GetTitleForProperty(string property, bool ignorePropertyPath)
+        {
+            string title = property;
+            if (ignorePropertyPath && title.IndexOf(".") > 0)
+            {
+                title = title.Split('.').Last();
+            }
+            title = IncludeSpaces(title);
+            title = ToPascalCase(title);
+            return title;
+        }
+
+        private string IncludeSpaces(string text)
+        {
+            return text.Replace("_", " ");
+        }
+
+        private string ToPascalCase(string text)
+        {
+            return string.Join(".",
+                text.Split('.').Select(p => Char.ToUpperInvariant(p[0]) + p.Substring(1))
+            );
+        }
+
+        public string GetFileExtension() => ".xlsx";
+
+        public string GetMimeType() => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    }
+}
+	
+
+
 
 How can I make multiple sheets inside Excel along with sheet1 with same data of sheet1 and along with that how WriteHeader function should change
 
