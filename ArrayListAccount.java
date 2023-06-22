@@ -119,3 +119,61 @@ private async Task SaveFile(ExecutionOptions executionOptions, string fileName, 
 -------------------------------------------------------------------------------------------------------------------------------
 
 	
+Stream ExecuteNew(List<JObject> jsonList, bool ignorePropertyPath)
+{
+    if (jsonList == null || jsonList.Count == 0)
+    {
+        return null;
+    }
+
+    var ms = new MemoryStream();
+    using (var excelStream = new MemoryStream())
+    {
+        var workbook = (IWorkbook)new XSSFWorkbook();
+
+        for (int sheetIndex = 0; sheetIndex < jsonList.Count; sheetIndex++)
+        {
+            var sheet = (ISheet)workbook.CreateSheet("Sheet" + (sheetIndex + 1));
+
+            var graphQLResult = jsonList[sheetIndex];
+            var list = graphQLResult.SelectToken("$.search.list") ?? graphQLResult.SelectToken("$..search.list")
+                ?? graphQLResult.SelectToken("$..search");
+
+            if (list != null && list is JArray)
+            {
+                var header = (Dictionary<string, int>)null;
+                var rowIndex = 0;
+                var dictList = (list as JArray).ToFlatDictionaries();
+                foreach (var record in dictList)
+                {
+                    if (rowIndex == 0)
+                    {
+                        var orderedHeaders = dictList.SelectMany(lst => lst.Select((row, index) => new { text = row.Key, index }));
+                        var allHeaders = orderedHeaders
+                            .GroupBy(gp => new { gp.text })
+                            .OrderBy(x => x.Max(y => y.index))
+                            .Select(x => x.Key.text).Distinct();
+                        header = WriteHeader(allHeaders, sheet, ignorePropertyPath);
+                        rowIndex++;
+                    }
+
+                    foreach (var k in record.ToList())
+                    {
+                        if (k.Value != null && k.Value.GetType() == typeof(string))
+                        {
+                            record[k.Key] = ((string)k.Value).Replace("\r", "");
+                        }
+                    }
+                    sheet.CreateFreezePane(0, 1, 0, 1);
+                    rowIndex = WriteRow(header, record, sheet, rowIndex, ignorePropertyPath);
+                }
+            }
+        }
+
+        workbook.Write(excelStream);
+        byte[] excelStreamContent = excelStream.ToArray();
+        ms.Write(excelStreamContent, 0, excelStreamContent.Length);
+    }
+
+    return ms;
+}
