@@ -114,7 +114,7 @@ private async Task SaveFile(ExecutionOptions executionOptions, string fileName, 
             _logger.LogInformation("File saved in S3Bucket {fileName}", fileName);
         }
 	
-	
+	 Stream ExecuteNew(JObject graphQLResult, bool ignorePropertyPath);
 	
 -------------------------------------------------------------------------------------------------------------------------------
 
