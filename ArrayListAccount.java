@@ -90,6 +90,8 @@ public class ArrayListAccount {
 	
 private async Task SaveFile(ExecutionOptions executionOptions, string fileName, string bucketName)
         {
+            var jsonList = new List<JObject>();
+
             var result = await _documentExecuter.ExecuteAsync(executionOptions);
             if (result.Errors?.Count > 0)
             {
@@ -99,8 +101,9 @@ private async Task SaveFile(ExecutionOptions executionOptions, string fileName, 
             _logger.LogInformation("Fetched data  {fileName}", fileName);
 
             var json = JObject.FromObject(result.Data);
+            jsonList.Add(json);
 
-            var file = _formatter.ExecuteNew(json, false);
+            var file = _formatter.ExecuteNew(jsonList, false);
 
             file.Seek(0, System.IO.SeekOrigin.Begin);
 
@@ -110,8 +113,6 @@ private async Task SaveFile(ExecutionOptions executionOptions, string fileName, 
 
             _logger.LogInformation("File saved in S3Bucket {fileName}", fileName);
         }
-	
-	
 	
 	
 	
