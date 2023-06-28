@@ -204,3 +204,84 @@ query ($productIndividualId: Int, $allocationScaniaUnitId: Int) {
   }
 }
 
+
+
+
+function exportQuery(queries) {
+  queries.forEach(query => {
+    // Perform some action with the query
+    console.log(query);
+    // ... Do something else with the query
+  });
+}
+
+// Example usage
+const queries = [
+  `
+  query ($productIndividualId: Int) {
+    products {
+      search(productIndividualId: $productIndividualId) {
+        list {
+          id
+          productClassText
+          chassisNumber
+          productIndividualNumber
+          country {
+            name
+            iSOCode
+            __typename
+          }
+          fitForUseNumber
+          specialOrderNumber
+          uniqueDesignNumber
+          invoicedDate
+          finalAssemblyUnit
+          serialNumber
+          totalMaterialValue
+          totalProductionValue
+          totalMarkupValue
+          totalCurrencyValue
+          baseCost
+          __typename
+        }
+        __typename
+      }
+      __typename
+    }
+  }
+  `,
+  `
+  query ($paging: Paging, $order: String, $filter: String, $productIndividualId: Int) {
+    products {
+      specification(paging: $paging, order: $order, filter: $filter, productIndividualId: $productIndividualId) {
+        list {
+          id
+          variantOption {
+            value
+            description
+            variantFamily {
+              value
+              description
+              variantClass {
+                value
+                description
+                __typename
+              }
+              __typename
+            }
+            __typename
+          }
+          __typename
+        }
+        totalCount
+        __typename
+      }
+      __typename
+    }
+  }
+  `
+  // Add more queries here if needed
+];
+
+exportQuery(queries);
+
