@@ -11,158 +11,196 @@ public class ComparatorAccount implements Comparator<account>{
 	}
 
 }
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-
-public Stream Execute(JObject graphQLResult, bool ignorePropertyPath)
-{
-    var list = graphQLResult.SelectToken("$.search.list") ?? graphQLResult.SelectToken("$..search.list")
-        ?? graphQLResult.SelectToken("$..search");
-    if (list != null && list is JArray)
-    {
-        var ms = new MemoryStream();
-        using (var excelStream = new MemoryStream())
-        {
-            var workbook = (IWorkbook)new XSSFWorkbook();
-
-            // Get distinct sheet names from the data
-            var sheetNames = GetDistinctSheetNames((list as JArray), ignorePropertyPath);
-
-            foreach (var sheetName in sheetNames)
-            {
-                var sheet = (ISheet)workbook.CreateSheet(sheetName);
-
-                var header = (Dictionary<string, int>)null;
-                var rowIndex = 0;
-                var dictList = (list as JArray).ToFlatDictionaries();
-                foreach (var record in dictList)
-                {
-                    if (rowIndex == 0)
-                    {
-                        var orderedHeaders = dictList.SelectMany(lst => lst.Select((row, index) => new { text = row.Key, index }));
-                        var allHeaders = orderedHeaders
-                            .GroupBy(gp => new { gp.text })
-                            .OrderBy(x => x.Max(y => y.index))
-                            .Select(x => x.Key.text).Distinct();
-                        header = WriteHeader(allHeaders, sheet, ignorePropertyPath);
-                        rowIndex++;
-                    }
-
-                    foreach (var k in record.ToList())
-                    {
-                        if (k.Value != null && k.Value.GetType() == typeof(string))
-                        {
-                            record[k.Key] = ((string)k.Value).Replace("\r", "");
-                        }
-                    }
-                    sheet.CreateFreezePane(0, 1, 0, 1);
-                    rowIndex = WriteRow(header, record, sheet, rowIndex, ignorePropertyPath);
-                }
-            }
-
-            workbook.Write(excelStream);
-            byte[] excelStreamContent = excelStream.ToArray();
-            ms.Write(excelStreamContent, 0, excelStreamContent.Length);
+	
+query ($productIndividualId: Int) {
+  products {
+    search(productIndividualId: $productIndividualId) {
+      list {
+        id
+        productClassText
+        chassisNumber
+        productIndividualNumber
+        country {
+          name
+          iSOCode
+          __typename
         }
-        return ms;
+        fitForUseNumber
+        specialOrderNumber
+        uniqueDesignNumber
+        invoicedDate
+        finalAssemblyUnit
+        serialNumber
+        totalMaterialValue
+        totalProductionValue
+        totalMarkupValue
+        totalCurrencyValue
+        baseCost
+        __typename
+      }
+      __typename
     }
-    return null;
-}
-
-private List<string> GetDistinctSheetNames(JArray data, bool ignorePropertyPath)
-{
-    var sheetNames = new List<string>();
-    foreach (var record in data)
-    {
-        var sheetName = ignorePropertyPath ? "Sheet1" : GetSheetNameFromRecord(record);
-        if (!sheetNames.Contains(sheetName))
-            sheetNames.Add(sheetName);
-    }
-    return sheetNames;
-}
-
-private string GetSheetNameFromRecord(JToken record)
-{
-    // Modify this logic to extract the sheet name from the record
-    // Example: Assuming the record has a property "SheetName" containing the sheet name
-    return record.Value<string>("SheetName");
-}
-
-modified WriteHeader 
-
-private Dictionary<string, int> WriteHeader(IEnumerable<string> headers, ISheet sheet, bool ignorePropertyPath)
-{
-    var headerRow = sheet.CreateRow(0);
-    var headerDict = new Dictionary<string, int>();
-    var columnIndex = 0;
-    foreach (var header in headers)
-    {
-        var cell = headerRow.CreateCell(columnIndex);
-        cell.SetCellValue(header);
-        headerDict[header] = columnIndex;
-        columnIndex++;
-    }
-    return headerDict;
+    __typename
+  }
 }
 
 
-#--------To make multiple sheets inside excel
-
-public Stream Execute(JObject graphQLResult, bool ignorePropertyPath)
-{
-    var list = graphQLResult.SelectToken("$.search.list") ?? graphQLResult.SelectToken("$..search.list")
-        ?? graphQLResult.SelectToken("$..search");
-    if (list != null && list is JArray)
-    {
-        var ms = new MemoryStream();
-        using (var excelStream = new MemoryStream())
-        {
-            var workbook = (IWorkbook)new XSSFWorkbook();
-
-            var dictList = (list as JArray).ToFlatDictionaries();
-            foreach (var record in dictList)
-            {
-                var sheetName = GenerateSheetName(record); // Generate a unique sheet name for each record
-
-                var sheet = (ISheet)workbook.CreateSheet(sheetName);
-
-                var header = (Dictionary<string, int>)null;
-                var rowIndex = 0;
-
-                foreach (var k in record.ToList())
-                {
-                    if (k.Value != null && k.Value.GetType() == typeof(string))
-                    {
-                        record[k.Key] = ((string)k.Value).Replace("\r", "");
-                    }
-                }
-
-                if (rowIndex == 0)
-                {
-                    var orderedHeaders = dictList.SelectMany(lst => lst.Select((row, index) => new { text = row.Key, index }));
-                    var allHeaders = orderedHeaders
-                        .GroupBy(gp => new { gp.text })
-                        .OrderBy(x => x.Max(y => y.index))
-                        .Select(x => x.Key.text).Distinct();
-                    header = WriteHeader(allHeaders, sheet, ignorePropertyPath);
-                    rowIndex++;
-                }
-
-                sheet.CreateFreezePane(0, 1, 0, 1);
-                rowIndex = WriteRow(header, record, sheet, rowIndex, ignorePropertyPath);
+query ($paging: Paging, $order: String, $filter: String, $productIndividualId: Int) {
+  products {
+    specification(paging: $paging, order: $order, filter: $filter, productIndividualId: $productIndividualId) {
+      list {
+        id
+        variantOption {
+          value
+          description
+          variantFamily {
+            value
+            description
+            variantClass {
+              value
+              description
+              __typename
             }
-
-            workbook.Write(excelStream);
-            byte[] excelStreamContent = excelStream.ToArray();
-            ms.Write(excelStreamContent, 0, excelStreamContent.Length);
+            __typename
+          }
+          __typename
         }
-        return ms;
+        __typename
+      }
+      totalCount
+      __typename
     }
-    return null;
+    __typename
+  }
 }
 
-------In the modified code, a unique sheet name is generated for each record in the dictList using the GenerateSheetName function (you can implement it according to your requirements). Then, a new sheet is created with the generated name using workbook.CreateSheet(sheetName). The header and rows are written to the respective sheet inside the foreach loop for each record.
 
-Note that the WriteHeader function should be modified to accept the sheet object (ISheet) as a parameter instead of the sheet name (string). You can update the WriteHeader function accordingly to write the headers to the correct sheet.
+query ($productIndividualId: Int, $allocationScaniaUnitId: Int) {
+  orchestrator {
+    productIndividualStepFault(productIndividualId: $productIndividualId, allocationScaniaUnitId: $allocationScaniaUnitId) {
+      type
+      details
+      message
+      referenceValue
+      flowExecutionStep {
+        startDate
+        __typename
+      }
+      __typename
+    }
+    __typename
+  }
+}
 
 
+query productIndividualComponentsQuery($productIndividualId: Int, $allocationScaniaUnitId: Int) {
+  components {
+    fetch(productIndividualId: $productIndividualId, allocationScaniaUnitId: $allocationScaniaUnitId) {
+      id
+      componentUnitCode
+      componentUnitDescription
+      componentDescription
+      __typename
+    }
+    __typename
+  }
+}
+
+
+query ($productIndividualId: Int, $allocationScaniaUnitId: Int) {
+  products {
+    productionValue(productIndividualId: $productIndividualId, allocationScaniaUnitId: $allocationScaniaUnitId) {
+      id
+      componentType {
+        id
+        name
+        description
+        code
+        __typename
+      }
+      productionPriceConditionPrice {
+        price
+        productionPriceCondition {
+          id
+          description
+          productionPriceList {
+            description
+            __typename
+          }
+          variantCodeSummary
+          __typename
+        }
+        productionPriceType {
+          name
+          description
+          isManualType
+          __typename
+        }
+        __typename
+      }
+      productionValue
+      isUniqueDesign
+      __typename
+    }
+    __typename
+  }
+}
+
+
+query ($paging: Paging, $order: String, $filter: String, $productIndividualId: Int) {
+  products {
+    specification(paging: $paging, order: $order, filter: $filter, productIndividualId: $productIndividualId) {
+      list {
+        id
+        variantOption {
+          value
+          description
+          variantFamily {
+            value
+            description
+            variantClass {
+              value
+              description
+              __typename
+            }
+            __typename
+          }
+          __typename
+        }
+        __typename
+      }
+      totalCount
+      __typename
+    }
+    __typename
+  }
+}
+
+
+query ($productIndividualId: Int, $allocationScaniaUnitId: Int) {
+  products {
+    manualProductionValue(productIndividualId: $productIndividualId, allocationScaniaUnitId: $allocationScaniaUnitId) {
+      id
+      componentType {
+        id
+        name
+        description
+        code
+        __typename
+      }
+      productionPriceType {
+        name
+        description
+        isManualType
+        __typename
+      }
+      value
+      comment
+      __typename
+    }
+    __typename
+  }
+}
 
