@@ -29,3 +29,7 @@ where  pi.ProductIndividualNumber = 10707629;
 (ROUND(SUM(cua.AdjustedValue) + SUM(cua.MarkupMaterialValue) + SUM(cua.MarkupProductionValue))
 
 how to add above statement query on select query and alias it as basecost?
+
+	SELECT (ROUND(SUM(cua.AdjustedValue) + SUM(cua.MarkupMaterialValue) + SUM(cua.MarkupProductionValue)))
+     FROM ConsolidationUnitAllocation cua
+     WHERE cua.ProductindividualId = pi.Id) AS basecost
