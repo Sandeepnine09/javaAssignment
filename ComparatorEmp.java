@@ -26,4 +26,6 @@ inner join ScaniaUnit su on su.Id = sus.ScaniaUnitId
 inner join ConsolidationUnitAllocation cua on cua.ProductindividualId = pi.Id
 where  pi.ProductIndividualNumber = 10707629;
 
-how to add groupBy query on productindividualnumber and sum multiple materialvalue according to groupBy?
+(ROUND(SUM(cua.AdjustedValue) + SUM(cua.MarkupMaterialValue) + SUM(cua.MarkupProductionValue))
+
+how to add above statement query on select query and alias it as basecost?
