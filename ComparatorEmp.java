@@ -10,26 +10,57 @@ public class ComparatorEmp implements Comparator<employee>{
 		return (int)(e1.getEmpDeptNo() - e2.getEmpDeptNo());
 	}
 }
+-----------------------------------------------------------------------------------------------------------------------------------------------------------
+	        [HttpPost("storefile")]
+        public async Task<IActionResult> storefile([FromBody] GraphQLQuery query, string fname, bool ignorePropertyPath = false)
+        { 
+            string fileName = string.Empty;            
+            if (query == null) { throw new ArgumentNullException(nameof(query)); }
 
-select pi.ProductIndividualNumber, pi.Id, pi.ChassisNumber,vo.Description as 'Product Class', als.Description as 'Allocation Status', 
-co.Name, ii.InvoiceDate, ci.SerialNumber, su.Name as 'Final Assembly Unit', cua.MaterialValue, cua.ProductionValue, cua.MarkupValue
-from  ProductIndividual pi 
-inner join ProductClass pc on pc.id = pi.ProductClassId 
-inner JOIN VariantOption vo on vo.Id = pc.VariantOptionId
-inner join FinalAssemblyAllocation fas on fas.ProductIndividualId = pi.Id
-inner join AllocationStatus als on als.Id = fas.AllocationStatusId
-inner join Country co on co.Id = pi.CountryId
-inner join InvoicedIndividual ii on ii.ProductindividualId = pi.Id
-inner join ComponentIndividual ci on ci.ProductindividualId = pi.Id
-inner join ScaniaUnitScaniaUnitType sus on sus.ScaniaUnitId = ci.ScaniaUnitId and sus.ScaniaunitTypeId = 4
-inner join ScaniaUnit su on su.Id = sus.ScaniaUnitId
-inner join ConsolidationUnitAllocation cua on cua.ProductindividualId = pi.Id
-where  pi.ProductIndividualNumber = 10707629;
+            try
+            {
+                var variables = JObject.Parse(query.Variables.ToString());
+                if (!variables.ContainsKey("paging"))
+                {
+                    variables["paging"] = JToken.FromObject(PagingInputGraphType.MaxDefault,
+                        new JsonSerializer() { ContractResolver = new CamelCasePropertyNamesContractResolver() });
+                }
 
-(ROUND(SUM(cua.AdjustedValue) + SUM(cua.MarkupMaterialValue) + SUM(cua.MarkupProductionValue))
+                var executionOptions = new ExecutionOptions
+                {
+                    Schema = _schema,
+                    Query = query.Query,
+                    Inputs = variables.ToInputs()
+                };
+                
+                fileName = $"{DateTime.Now.ToString("yyyyMMddHHmmssFFF")}/{fname.Replace("/", "-")}";
 
-how to add above statement query on select query and alias it as basecost?
+                _exportService.Execute(executionOptions, fileName, bucketName);
 
-	SELECT (ROUND(SUM(cua.AdjustedValue) + SUM(cua.MarkupMaterialValue) + SUM(cua.MarkupProductionValue)))
-     FROM ConsolidationUnitAllocation cua
-     WHERE cua.ProductindividualId = pi.Id) AS basecost
+                var tableName = GetTableName(query.Query);
+
+                using (_unitOfWorkFactory.Create())
+                {
+                    executionOptions.Inputs.Add("query", executionOptions.Query);
+                    executionOptions.Inputs.Add("operationName", query.OperationName);
+                    _auditLogRepository.Add(new AuditLog()
+                    {
+                        TableName = tableName,
+                        ActionType = ActionTypes.Export.ToString(),
+                        CreatedBy = _userResolverService.GetUser(),
+                        CreatedOn = DateTime.Now,
+                        IPAddress = _userResolverService.GetUserIP(),
+                        RequestParams = JsonConvert.SerializeObject(executionOptions.Inputs)
+                    });
+                }
+
+                _logger.LogInformation("Request submitted storefile method {fileName}", fileName);
+
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Exception in storefile {0}", ex);
+                return StatusCode((int)HttpStatusCode.InternalServerError, ex.ToString());
+            }
+            return Ok(new { fileName = fileName});
+        }
